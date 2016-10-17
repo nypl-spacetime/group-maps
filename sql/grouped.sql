@@ -21,15 +21,33 @@ FROM (
     pits
   WHERE
     dataset = 'mapwarper' AND
-    ST_Contains(ST_Envelope(
-      ST_SetSRID(ST_MakeLine(
-        ST_MakePoint({{ boundingBox.minLon }}, {{ boundingBox.minLat }}),
-        ST_MakePoint({{ boundingBox.maxLon }}, {{ boundingBox.maxLat }})), 4326)
-    ), geometry) AND
     (data->>'masked')::boolean = true AND
+
+    {{#if maxArea}}
+    ST_Area(Geography(geometry)) <= {{ maxArea }} AND
+    {{/if}}
+
+    {{#if minArea}}
+    ST_Area(Geography(geometry)) >= {{ minArea }} AND
+    {{/if}}
+
+    {{#if geometry}}
+    (
+      {{ geometryOperation }}(
+        Geometry(
+          ST_Buffer(
+            Geography(
+              ST_SetSRID(ST_GeomFromGeoJSON('{{ toJSON geometry }}'), 4326)
+            ), {{ coalesce geometryBuffer 0 }}
+          )
+        ),
+        geometry
+      )
+    ) AND
+    {{/if}}
+
     daterange('{{ yearMin }}-01-01', '{{ yearMax }}-12-31') @> validsince AND
-    daterange('{{ yearMin }}-01-01', '{{ yearMax }}-12-31') @> validuntil AND
-    ST_Area(Geography(geometry)) < {{ minArea }}
+    daterange('{{ yearMin }}-01-01', '{{ yearMax }}-12-31') @> validuntil
 ) d
 GROUP BY
   band

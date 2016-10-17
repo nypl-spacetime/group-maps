@@ -1,8 +1,61 @@
 const fs = require('fs')
+const path = require('path')
 const R = require('ramda')
 const postgis = require('spacetime-db-postgis')
 const Handlebars = require('handlebars')
-const config = require('./config.json')
+const minimist = require('minimist')
+
+const argv = minimist(process.argv.slice(2), {
+  string: [
+    'config',
+    'output',
+    'geometry'
+  ],
+  alias: {
+    c: 'config',
+    o: 'output',
+    g: 'geometry'
+  }
+})
+
+Handlebars.registerHelper('toJSON', (object) => new Handlebars.SafeString(JSON.stringify(object)))
+Handlebars.registerHelper('coalesce', (a, b) => a || b)
+
+if (!argv.output || !argv.config) {
+  console.log(`usage: group-maps --config /path/to/config.json --geometry /path/to/intersecting/geojson --output /path/to/output/dir`)
+  process.exit()
+}
+
+const outputDir = argv.output
+try {
+  fs.accessSync(outputDir, fs.F_OK)
+} catch (e) {
+  console.error(`Output directory does not exist: ${outputDir}`)
+  process.exit(1)
+}
+
+var config
+try {
+  config = require(argv.config)
+} catch (e) {
+  console.error(`Could not load config file: ${argv.config}`)
+  process.exit(1)
+}
+
+var geometry
+if (argv.geometry) {
+  try {
+    geometry = JSON.parse(fs.readFileSync(argv.geometry, 'utf8'))
+  } catch (e) {
+    console.log(e)
+    console.error(`Could not load geometry file: ${argv.geometry}`)
+    process.exit(1)
+  }
+}
+
+if (geometry) {
+  config.geometry = geometry
+}
 
 const queries = {
   all: Handlebars.compile(fs.readFileSync('./sql/all.sql', 'utf8'))(config),
@@ -15,6 +68,7 @@ Object.keys(queries).forEach((name) => {
   postgis.executeQuery(query, null, (err, rows) => {
     if (err) {
       console.error(err)
+      console.error(query)
       return
     }
 
@@ -27,6 +81,6 @@ Object.keys(queries).forEach((name) => {
       }))
     }
 
-    fs.writeFileSync(`./data/${name}.geojson`, JSON.stringify(geojson))
+    fs.writeFileSync(path.join(outputDir, `${name}.geojson`), JSON.stringify(geojson))
   })
 })

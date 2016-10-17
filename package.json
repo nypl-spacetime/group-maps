@@ -1,17 +1,24 @@
 {
-  "name": "mapcube",
+  "name": "group-maps",
   "version": "1.0.0",
-  "description": "",
+  "description": "Groups selection of Space/Time maps by x years",
   "main": "data.js",
   "dependencies": {
     "handlebars": "^4.0.5",
-    "ramda": "^0.21.0",
+    "minimist": "^1.2.0",
+    "ramda": "^0.22.1",
     "spacetime-db-postgis": "nypl-spacetime/spacetime-db-postgis"
   },
-  "devDependencies": {},
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+  "repository": {
+    "type": "git",
+    "url": "http://github.com/nypl-spacetime/group-maps.git"
   },
-  "author": "",
+  "devDependencies": {
+    "standard": "^8.4.0"
+  },
+  "scripts": {
+    "test": "standard"
+  },
+  "author": "Bert Spaan",
   "license": "MIT"
 }
