@@ -40,7 +40,7 @@ Running with `example.config.json`:
 - `buffer`: buffer around grouped polygon, in meters
 - `simplifyTolerance`: tolerance of [ST_Simplify](http://www.postgis.org/docs/ST_Simplify.html) function
 
-Instead of using the `geometry` field in the configuration file, you can also use the `--geometry` command line option and use a separate GeoJSON (containing a single GeoJSON geometry).
+Instead of using the `geometry` field in the configuration file, you can also use the `--geometry` command line option and use a separate GeoJSON file (containing a single GeoJSON geometry).
 
 ## Examples:
 
