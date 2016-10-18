@@ -38,7 +38,7 @@ try {
 
 var config
 try {
-  config = require(argv.config)
+  config = JSON.parse(fs.readFileSync(argv.config, 'utf8'))
 } catch (e) {
   console.error(`Could not load config file: ${argv.config}`)
   process.exit(1)
@@ -60,8 +60,8 @@ if (geometry) {
 }
 
 const queries = {
-  all: Handlebars.compile(fs.readFileSync('./sql/all.sql', 'utf8'))(config),
-  grouped: Handlebars.compile(fs.readFileSync('./sql/grouped.sql', 'utf8'))(config)
+  all: Handlebars.compile(fs.readFileSync(path.join(__dirname, 'sql/all.sql'), 'utf8'))(config),
+  grouped: Handlebars.compile(fs.readFileSync(path.join(__dirname, 'sql/grouped.sql'), 'utf8'))(config)
 }
 
 Object.keys(queries).forEach((name) => {
