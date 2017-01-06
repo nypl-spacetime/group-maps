@@ -3,14 +3,21 @@
   "version": "1.0.0",
   "description": "Groups selection of Space/Time maps in bands of a configurable amount of years",
   "bin": {
-     "spacetime-group-maps": "index.js"
-   },
+    "spacetime-group-maps": "index.js"
+  },
   "main": "data.js",
   "dependencies": {
-    "handlebars": "^4.0.5",
+    "@turf/area": "^3.6.3",
+    "@turf/bbox": "^3.7.0",
+    "@turf/buffer": "^3.7.0",
+    "@turf/intersect": "^3.7.0",
+    "@turf/kinks": "^3.7.0",
+    "@turf/meta": "^3.7.0",
+    "@turf/simplify": "^3.7.0",
+    "@turf/union": "^3.7.0",
+    "highland": "^2.10.1",
     "minimist": "^1.2.0",
-    "ramda": "^0.22.1",
-    "spacetime-db-postgis": "nypl-spacetime/spacetime-db-postgis"
+    "ramda": "^0.22.1"
   },
   "repository": {
     "type": "git",

@@ -29,9 +29,10 @@
       ]
     ]
   },
-  "yearMin": 1800,
-  "yearMax": 1949,
+  "yearMin": "1800",
+  "yearMax": "1949",
   "maxArea": 5000000,
   "buffer": 25,
-  "simplifyTolerance": 0.00005
+  "_simplifyTolerance": 0.00005,
+  "simplifyTolerance": 0.0005
 }
