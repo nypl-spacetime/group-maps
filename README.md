@@ -1,48 +1,129 @@
-# group-maps
+# Group Maps
 
-group-maps selects a set of maps from NYC Space/Time Directory database, and groups them in bands of a configurable amount of years.
+Group Maps selects a subset of [Map Warper](http://maps.nypl.org/warper/) maps from the [NYC Space/Time Directory](http://spacetime.nypl.org), and groups them in bands of a configurable amount of years.
 
-Creates two GeoJSON files, one with __all__ the maps, and one containing one Feature per group.
+From a Map Warper dataset file, Group Maps creates two GeoJSON files, one with all the maps, and one containing one Feature per group.
 
-![Example: Maps by Decade](maps-by-decade.png)
+Group Maps uses [Turf](http://turfjs.org/) to do geospatial intersection and union operations.
 
-## Prerequisites
+Example of Map Warper maps of New York City, grouped by decade:
 
-group-maps needs a Space/Time PostGIS database, with Map Warper maps:
+[![Example: Maps by Decade](maps-by-decade.png)](http://spacetime.nypl.org/maps-by-decade)
 
-  - Get NYPL Map Warper data and transform to Space/Time NDJSON with [`etl-mapwarper`](https://github.com/nypl-spacetime/etl-mapwarper)
-  - Create and fill PostGIS database (information coming soon)
+## Installation & Usage
 
-## Installation
+- Install Group Maps:
 
-    git clone https://github.com/nypl-spacetime/group-maps.git
-    npm install
+  npm install nypl-spacetime/group-maps
 
-## Usage
+- Download the Map Warper objects NDJSON file from the NYC Space/Time Directory's data repository:
 
-    node index --config /path/to/config.json --output /path/to/output/dir
+  wget http://s3.amazonaws.com/spacetime-nypl-org/datasets/mapwarper/mapwarper.objects.ndjson
 
-Running with `example.config.json`:
+- Create a [configuration file](#configuration), or use [`maps-by-decade.config.js`](maps-by-decade.config.js).
 
-    mkdir data
-    node index.js -c ./example.config.json -o ./data
+Group Maps exposes one function:
+
+```js
+const groupMaps = require('spacetime-group-maps')
+const geoJSONStreams = groupMaps(pathToNDJSON, config)
+```
+
+- Input:
+  1. path to NDJSON file containing Map Warper maps
+  2. configuration object, [see below](#configuration)
+- Output:
+  - Object containing wwo [Highland streams](http://highlandjs.org/), `all` and `grouped`; containing GeoJSON data
+
+### Example
+
+```js
+const groupMaps = require('spacetime-group-maps')
+
+const config = require('./maps-by-decade.config.js')
+const pathToNDJSON = 'mapwarper.objects.ndjson'
+
+const geoJSONStreams = groupMaps(pathToNDJSON, config)
+
+geoJSONStreams.all.pipe(fs.createWriteStream('./maps-by-decade.all.geojson'))
+geoJSONStreams.grouped.pipe(fs.createWriteStream('./maps-by-decade.grouped.geojson'))
+```
+
+See the [Group Maps ETL module](https://github.com/nypl-spacetime/etl-group-maps) for a complete example on how to use Group Maps.
 
 ## Configuration
 
-- `bandSize`: group maps by this many years
-- `geometry`: GeoJSON geometry, only use maps that this geometry intersects/contains
-- `geometryOperation`: PostGIS operation to use, `ST_Contains` or `ST_Intersects`
-- `geometryBuffer`: buffer around the geometry, in meters
-- `yearMin`: only use maps from this year
-- `yearMax`: only use maps until this year
-- `maxArea`: only use maps depicting an area of this amount of square meters or more
-- `minArea`: only use maps depicting an area of this amount of square meters or less
-- `buffer`: buffer around grouped polygon, in meters
-- `simplifyTolerance`: tolerance of [ST_Simplify](http://www.postgis.org/docs/ST_Simplify.html) function
+```js
+module.exports = {
+  groupBy: (object) => {
+    // Group maps using the following value
+    const getDate = (str) => new Date(`${str}`)
+    const bandSize = 10
+    const validSince = object.validSince
+    const validUntil = object.validUntil
+    const year = (getDate(validSince).getFullYear() + getDate(validUntil).getFullYear()) / 2
+    return Math.floor(year / bandSize) * bandSize
+  },
 
-Instead of using the `geometry` field in the configuration file, you can also use the `--geometry` command line option and use a separate GeoJSON file (containing a single GeoJSON geometry).
+  properties: (object) => ({
+    // Only copy the following properties to GeoJSON Features in output
+    id: object.id,
+    uuid: object.data.uuid,
+    imageId: object.data.nyplDigitalId,
+    name: object.name,
+    year: object.validSince
+  }),
+
+  // Only use maps intersecting with this GeoJSON geometry
+  geometry: {
+    type: 'Polygon',
+    coordinates: [
+      [
+        [
+          -73.424377,
+          40.436495
+        ],
+        [
+          -73.424377,
+          41.15591
+        ],
+        [
+          -74.347229,
+          41.15591
+        ],
+        [
+          -74.347229,
+          40.436495
+        ],
+        [
+          -73.424377,
+          40.436495
+        ]
+      ]
+    ]
+  },
+
+  // Only use maps published in this year, or newer
+  yearMin: 1850,
+
+  // Only use maps published in this year, or older
+  yearMax: 1949,
+
+  // Only use maps depicting an area of this amount of square meters, or more
+  minArea: 0
+
+  // Only use maps depicting an area of this amount of square meters, or less
+  maxArea: 5000000,
+
+  // Buffer around grouped polygon, in meters
+  buffer: 25,
+
+  // Tolerance of simplification function; see http://mourner.github.io/simplify-js/
+  simplifyTolerance: 0.00005
+}
+```
 
 ## Examples:
 
-- [Maps by Decade](http://bertspaan.nl/maps-by-decade) - https://github.com/bertspaan/maps-by-decade
+- [Maps by Decade](http://spacetime.nypl.org/maps-by-decade) - https://github.com/bertspaan/maps-by-decade
 - [Along the Hudson](http://bertspaan.nl/along-the-hudson) - https://github.com/bertspaan/along-the-hudson

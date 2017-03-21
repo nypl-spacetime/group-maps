@@ -1,88 +1,168 @@
-#!/usr/bin/env node
+'use strict'
 
 const fs = require('fs')
-const path = require('path')
+const H = require('highland')
 const R = require('ramda')
-const postgis = require('spacetime-db-postgis')
-const Handlebars = require('handlebars')
-const minimist = require('minimist')
-
-const argv = minimist(process.argv.slice(2), {
-  string: [
-    'config',
-    'output',
-    'geometry'
-  ],
-  alias: {
-    c: 'config',
-    o: 'output',
-    g: 'geometry'
-  }
-})
-
-Handlebars.registerHelper('toJSON', (object) => new Handlebars.SafeString(JSON.stringify(object)))
-Handlebars.registerHelper('coalesce', (a, b) => a || b)
-
-if (!argv.output || !argv.config) {
-  console.log(`usage: group-maps --config /path/to/config.json --geometry /path/to/intersecting/geojson --output /path/to/output/dir`)
-  process.exit()
+const turf = {
+  area: require('@turf/area'),
+  bbox: require('@turf/bbox'),
+  meta: require('@turf/meta'),
+  kinks: require('@turf/kinks'),
+  union: require('@turf/union'),
+  buffer: require('@turf/buffer'),
+  simplify: require('@turf/simplify'),
+  intersect: require('@turf/intersect')
 }
 
-const outputDir = argv.output
-try {
-  fs.accessSync(outputDir, fs.F_OK)
-} catch (e) {
-  console.error(`Output directory does not exist: ${outputDir}`)
-  process.exit(1)
-}
+const getDate = (str) => new Date(`${str}`)
 
-var config
-try {
-  config = JSON.parse(fs.readFileSync(argv.config, 'utf8'))
-} catch (e) {
-  console.error(`Could not load config file: ${argv.config}`)
-  process.exit(1)
-}
+function groupMaps (filename, config) {
+  // TODO: check config!!!!!!
+  // Or add default config
 
-var geometry
-if (argv.geometry) {
-  try {
-    geometry = JSON.parse(fs.readFileSync(argv.geometry, 'utf8'))
-  } catch (e) {
-    console.log(e)
-    console.error(`Could not load geometry file: ${argv.geometry}`)
-    process.exit(1)
-  }
-}
-
-if (geometry) {
-  config.geometry = geometry
-}
-
-const queries = {
-  all: Handlebars.compile(fs.readFileSync(path.join(__dirname, 'sql/all.sql'), 'utf8'))(config),
-  grouped: Handlebars.compile(fs.readFileSync(path.join(__dirname, 'sql/grouped.sql'), 'utf8'))(config)
-}
-
-Object.keys(queries).forEach((name) => {
-  var query = queries[name]
-
-  postgis.executeQuery(query, null, (err, rows) => {
-    if (err) {
-      console.error(err)
-      console.error(query)
-      return
-    }
-
-    const geojson = {
-      type: 'FeatureCollection',
-      features: rows.map((row) => ({
-        type: 'Feature',
-        properties: R.omit(['geometry'], row),
-        geometry: row.geometry
-      }))
-    }
-
-    fs.writeFileSync(path.join(outputDir, `${name}.geojson`), JSON.stringify(geojson))
+  const toFeature = (object) => ({
+    type: 'Feature',
+    properties: Object.assign(config.properties(object), {
+      group: config.groupBy(object),
+      bbox: turf.bbox(object.geometry)
+    }),
+    geometry: object.geometry
   })
-})
+
+  const toGeoJSON = (stream) => {
+    const geojson = {
+      open: '{"type":"FeatureCollection","features":[',
+      close: ']}\n'
+    }
+
+    const json = stream
+      .map(JSON.stringify)
+      .intersperse(',')
+
+    return H([
+      H([geojson.open]),
+      json,
+      H([geojson.close])
+    ]).sequence()
+  }
+
+  const filters = {
+    year: (object) => {
+      let pass = true
+
+      if (config.yearMin !== undefined || config.yearMax !== undefined) {
+        if (config.yearMin !== undefined) {
+          pass = pass && object.validSince && (getDate(object.validSince) >= getDate(config.yearMin))
+        }
+
+        if (config.yearMax !== undefined) {
+          pass = pass && object.validUntil && (getDate(object.validUntil) <= getDate(config.yearMax))
+        }
+      }
+
+      return pass
+    },
+    area: (object) => {
+      let pass = true
+
+      if (config.minArea !== undefined || config.maxArea !== undefined) {
+        const area = turf.area(object.geometry)
+
+        if (config.minArea !== undefined) {
+          pass = pass && area >= config.maxArea
+        }
+
+        if (config.maxArea !== undefined) {
+          pass = pass && area <= config.maxArea
+        }
+      }
+
+      return pass
+    },
+    intersects: (object) => {
+      if (object.geometry !== undefined) {
+        const kinks = turf.kinks(object.geometry)
+        if (kinks.features.length) {
+          throw new Error(`Self-intersections found in ${object.id}`)
+        } else {
+          return turf.intersect(object.geometry, config.geometry) !== undefined
+        }
+      } else {
+        return true
+      }
+    }
+  }
+
+  const simplify = (feature) => {
+    if (config.simplifyTolerance !== undefined) {
+      const simplified = turf.simplify(feature, config.simplifyTolerance)
+      return simplified
+    } else {
+      return feature
+    }
+  }
+
+  const buffer = (feature) => {
+    if (config.buffer !== undefined) {
+      const buffered = turf.buffer(feature, config.buffer, 'meters')
+      return Object.assign(buffered, {
+        properties: feature.properties
+      })
+    } else {
+      return feature
+    }
+  }
+
+  const union = (group) => {
+    console.error(`Computing union for group ${group.group}: ${group.features.length} features`)
+
+    var feature
+    if (group.features.length === 1) {
+      feature = group.features[0]
+    } else {
+      feature = turf.union.apply(this, group.features)
+    }
+
+    return {
+      type: 'Feature',
+      properties: {
+        group: group.group,
+        count: group.features.length
+      },
+      geometry: feature.geometry
+    }
+  }
+
+  const roundCoordinates = (feature) => {
+    var newFeature = R.clone(feature)
+    turf.meta.coordEach(newFeature, (p) => {
+      p[0] = Math.round(p[0] * 1e6) / 1e6
+      p[1] = Math.round(p[1] * 1e6) / 1e6
+    })
+    return newFeature
+  }
+
+  const features = H(fs.createReadStream(filename))
+    .split()
+    .compact()
+    .map(JSON.parse)
+    .filter(R.allPass(R.values(filters)))
+    .map(toFeature)
+    .map(simplify)
+    .map(buffer)
+
+  const grouped = features.fork()
+    .group((feature) => feature.properties.group)
+    .map(R.toPairs)
+    .sequence()
+    .map(R.zipObj(['group', 'features']))
+    .map(union)
+    .map(roundCoordinates)
+
+  return {
+    grouped: toGeoJSON(grouped),
+    all: toGeoJSON(features.fork().map(roundCoordinates))
+  }
+}
+
+module.exports = groupMaps

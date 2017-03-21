@@ -1,6 +1,6 @@
 {
-  "name": "group-maps",
-  "version": "1.0.0",
+  "name": "spacetime-group-maps",
+  "version": "0.5.0",
   "description": "Groups selection of Space/Time maps in bands of a configurable amount of years",
   "bin": {
     "spacetime-group-maps": "index.js"

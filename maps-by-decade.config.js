@@ -45,5 +45,5 @@ module.exports = {
   yearMax: 1949,
   maxArea: 5000000,
   buffer: 25,
-  simplifyTolerance: 0.00005, // was 0.00005
+  simplifyTolerance: 0.00005
 }
