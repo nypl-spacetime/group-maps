@@ -14,11 +14,11 @@ Example of [Map Warper maps of New York City, grouped by decade](http://spacetim
 
 - Install Group Maps:
 
-    npm install nypl-spacetime/group-maps
+    `npm install nypl-spacetime/group-maps`
 
 - Download the Map Warper objects NDJSON file from the NYC Space/Time Directory's data repository:
 
-    wget http://s3.amazonaws.com/spacetime-nypl-org/datasets/mapwarper/mapwarper.objects.ndjson
+    `wget http://s3.amazonaws.com/spacetime-nypl-org/datasets/mapwarper/mapwarper.objects.ndjson`
 
 - Create a [configuration file](#configuration), or use [`maps-by-decade.config.js`](maps-by-decade.config.js).
 
