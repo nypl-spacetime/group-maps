@@ -6,7 +6,7 @@ From a Map Warper dataset file, Group Maps creates two GeoJSON files, one with a
 
 Group Maps uses [Turf](http://turfjs.org/) to do geospatial intersection and union operations.
 
-Example of Map Warper maps of New York City, grouped by decade:
+Example of [Map Warper maps of New York City, grouped by decade](http://spacetime.nypl.org/maps-by-decade):
 
 [![Example: Maps by Decade](maps-by-decade.png)](http://spacetime.nypl.org/maps-by-decade)
 
@@ -14,11 +14,11 @@ Example of Map Warper maps of New York City, grouped by decade:
 
 - Install Group Maps:
 
-  npm install nypl-spacetime/group-maps
+    npm install nypl-spacetime/group-maps
 
 - Download the Map Warper objects NDJSON file from the NYC Space/Time Directory's data repository:
 
-  wget http://s3.amazonaws.com/spacetime-nypl-org/datasets/mapwarper/mapwarper.objects.ndjson
+    wget http://s3.amazonaws.com/spacetime-nypl-org/datasets/mapwarper/mapwarper.objects.ndjson
 
 - Create a [configuration file](#configuration), or use [`maps-by-decade.config.js`](maps-by-decade.config.js).
 
