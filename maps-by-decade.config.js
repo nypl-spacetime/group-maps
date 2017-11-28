@@ -10,7 +10,7 @@ module.exports = {
   properties: (object) => ({
     id: object.id,
     uuid: object.data.uuid,
-    imageId: object.data.nyplDigitalId,
+    imageId: object.data.imageId,
     name: object.name,
     year: object.validSince
   }),

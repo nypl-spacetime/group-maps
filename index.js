@@ -146,6 +146,7 @@ function groupMaps (filename, config) {
     .split()
     .compact()
     .map(JSON.parse)
+    .filter((object) => object.geometry)
     .filter(R.allPass(R.values(filters)))
     .map(toFeature)
     .map(simplify)
